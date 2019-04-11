@@ -1,5 +1,25 @@
 # Python Tutorial with Git, Gitlab-CI, Cloudbuild-CI, Docker, Gcloud
 
+- [Python Tutorial with Git, Gitlab-CI, Cloudbuild-CI, Docker, Gcloud](#python-tutorial-with-git-gitlab-ci-cloudbuild-ci-docker-gcloud)
+  - [FAQ: Why would I want to read this?](#faq-why-would-i-want-to-read-this)
+  - [Understanding the python path](#understanding-the-python-path)
+  - [Understanding the global environment](#understanding-the-global-environment)
+    - [Script directory or current directory](#script-directory-or-current-directory)
+    - [Core python installation](#core-python-installation)
+    - [Site packages](#site-packages)
+    - [(Advanced) Compiled modules](#advanced-compiled-modules)
+    - [(Advanced) Zip python core installation](#advanced-zip-python-core-installation)
+  - [Understanding a virtual environment](#understanding-a-virtual-environment)
+    - [Installing pipenv](#installing-pipenv)
+    - [Creating a virtual environment with pipenv](#creating-a-virtual-environment-with-pipenv)
+    - [Virtualenv paths](#virtualenv-paths)
+  - [About directories and working environments](#about-directories-and-working-environments)
+  - [Creating a python project](#creating-a-python-project)
+    - [Opening a folder as a project with Pytharm](#opening-a-folder-as-a-project-with-pytharm)
+      - [(Advanced) Selecting external virtualenv](#advanced-selecting-external-virtualenv)
+    - [Coding our first script](#coding-our-first-script)
+    - [Initializing a git repository](#initializing-a-git-repository)
+      - [Setting up git](#setting-up-git)
 Disclaimer: I have simplified and overlooked details in this guide.
 
 This tutorial assumes you have read the [Python101 slides](https://docs.google.com/presentation/d/1WdBEU1BSDfEKHkLxY2IksiaAqXJBSKPUc_0Q4UJAtIY/edit):
@@ -326,6 +346,7 @@ There are steps that can be done out of order, and we could create if we wanted 
 I always start coding in a single script file that I call `main.py`, and for now, we will be coding everything there.
 
 TODO
+
 ----
 ### Initializing a git repository
 
