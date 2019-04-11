@@ -25,6 +25,11 @@
     - [Initializing a git repository](#initializing-a-git-repository)
       - [Setting up git](#setting-up-git)
     - [Adding initial files to git](#adding-initial-files-to-git)
+  - [Coding our first script](#coding-our-first-script)
+    - [Getting informed about how to use the API](#getting-informed-about-how-to-use-the-api)
+    - [Structuring the code](#structuring-the-code)
+    - [Running the initial script](#running-the-initial-script)
+    - [Using the IDE and exploring other packages](#using-the-ide-and-exploring-other-packages)
 
 ---
 
@@ -97,7 +102,7 @@ The overview of the whole process:
 
 `import sys` will trigger a lookup in the so called Python Path, looking for a package or module with that name to import.
 
-Our ability to import modules greatly depends on this feature. The Python path is similar to the shell PATH variable.
+Our ability to import modules greatly depends on this caracteristic of Python. The Python path is similar to the shell PATH variable.
 
 In all the systems, the PATH variable marks where to look for binaries. Therefore, running `base64`, will look on all those places, and the first match will be the one executed.
 
@@ -141,7 +146,7 @@ Although I'm going to explain what these directories contain, I have sorted the 
 
 ### Script directory or current directory
 
-It may be difficult to realise, but that empty line at the beginning of the python paths means current directory. Python will add the location of the python script we execute to the python path automatically. This is quite confusing when using the path of an script inside a package.
+It may be difficult to realise, but that empty line at the beginning of the python paths means current directory. Python will add the location of the python script we execute to the python path automatically. Python inserting the script directory in the path causes a lot of confusion when using the path of an script inside a package.
 
 Have a look at [https://github.com/txomon/python-paths](https://github.com/txomon/python-paths) for some examples
 
@@ -287,7 +292,7 @@ Feel free to install new packages using pipenv, and check how the `site-packages
 
 Before starting off with the first project, I would consider a few things that usually developer come across on their own:
 
-- Spaces in directories or files are forbidden. They cause a ton of trouble and we end up paying the price way later when changing paths it's practically impossible
+- Spaces in directories or files are forbidden. Spaces cause a ton of trouble and we end up paying the price way later when changing paths it's practically impossible
 - Create a directory to hold all our code. Having projects in the desktop is handy, but code ends up getting mixed with downloads and what not, and that gets unmanageable quickly. Here there are a few approaches:
   - Directory in the root called "projects" or "code" (`/projects/`)
   - Directory in HOME (`/home/javier/projects/`), supposing the path doesn't contain any space, called "projects" or "code"
@@ -337,9 +342,9 @@ When we open a folder with Pycharm, it automatically tries to index all the cont
 
 We will see that pycharm automatically starts working and doing things (we can check this in the bottom status bar, on the right side)
 
-The first thing to do when we open a new folder with pycharm is to check what is the python interpreter is using. They call it python interpreter as a way to group a virtualenv, remote python installations and the global local installation.
+The first thing to do when we open a new folder with pycharm is to check what is the python interpreter is using. Pycharm calls it python interpreter as a way to group a virtualenv, remote python installations and the global local installation.
 
-For that, we can head to `Settings -> Project: project-name -> Project Interpreter`
+To setup the python interpreter, we can head to `Settings -> Project: project-name -> Project Interpreter`
 
 ![Settings section](images/02-project-interpreter.png)
 
@@ -554,5 +559,216 @@ Changes to be committed:
 
 ```
 
-Everything looks ok, so let's proceed.
+Everything looks ok, so let's proceed. Just in case you don't understand why I add but not commit, it's because I'm taking advantage of the staging area of git to save work without committing. Check the docs for more info.
 
+## Coding our first script
+
+We are finally ready to start the first script. We have all the stuff we need to test the code and some mock data to work on.
+
+We can finally make use of the IDE and create a new python script in the top. Notice that I am speaking about scripts, as opposed to modules. This is because on how I am planning to run it.
+
+### Getting informed about how to use the API
+
+We have clear that there is an API that will allow us to do everything. Therefore, the best is to start off by reading the specific calls we need to do.
+
+After reading for while, let's start with copying the code in the examples together in `main.py`. I have adapted the name of the input notebook filename and the path in which to execute the notebook at.
+
+```python
+import nbformat
+from nbconvert.preprocessors import ExecutePreprocessor
+
+with open('test-notebook.ipynb') as f:
+    nb = nbformat.read(f, as_version=4)
+ep = ExecutePreprocessor(timeout=600, kernel_name='python3')
+ep.preprocess(nb, {'metadata': {'path': './'}})
+with open('executed_notebook.ipynb', 'wt') as f:
+    nbformat.write(nb, f)
+```
+
+This is literally a copy paste of all the stuff we can find in the documentation. To be honest, it's pure chance this tutorial is so straight forward, and it's probably the only time that it has happened to me.
+
+### Structuring the code
+
+Although we could run it like this, I would try not to go the script way for long. Let's structure the code we already have quite simply.
+
+Tip: Learn the Hot Key for Reformat Code, in the top menu, `Code -> Reformat Code`, and run it often. It's extremely helpful!
+
+```python
+import nbformat
+from nbconvert.preprocessors import ExecutePreprocessor
+
+
+def run_notebook(notebook_file='test-notebook.ipynb'):
+    with open(notebook_file) as f:
+        nb = nbformat.read(f, as_version=4)
+    ep = ExecutePreprocessor(timeout=600, kernel_name='python3')
+    ep.preprocess(nb, {'metadata': {'path': './'}})
+    return nb
+
+
+def write_notebook(notebook, notebook_file='executed_notebook.ipynb'):
+    with open(notebook_file, 'wt') as f:
+        nbformat.write(notebook, f)
+
+
+def main():
+    notebook = run_notebook()
+    write_notebook(notebook)
+
+
+if __name__ == '__main__':
+    main()
+```
+
+With this simple changes, we have:
+
+- Packaged functionality in functions
+- Set defaults so that we don't need to pass any arguments
+- Made sure that our script works OK as a module
+
+The `default arguments` are a thing in python, and we are using them to provide those defaults I mentioned.
+
+The script can be used as a module because there are no side effects. When you run `import main`, it will run all the code in the first level, as in that python will define all the functions, but it won't run the functions themselves.
+
+### Running the initial script
+
+We are now ready to run the code.
+
+```text
+[I] (test-project) javier@sam ~/t/test-project (master)> python main.py
+```
+
+And no output. Of course, we didn't set up any output here. But let's see if it worked.
+
+TODO: Explain ipynb internal format
+
+```json
+[I] (test-project) javier@sam ~/t/test-project (master)> cat executed_notebook.ipynb
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Hello world\n"
+     ]
+    }
+   ],
+   "source": [
+    "print('Hello world')"
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.7.3"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 2
+}
+```
+
+It seems it worked, but I'm afraid we can't really tell much from all this. If we do a diff with the initial notebook, we don't see any difference!
+
+```text
+[I] (test-project) javier@sam ~/t/test-project (master)> diff -u executed_notebook.ipynb test-notebook.ipynb
+```
+
+Let's change then the output of the notebook. The new code will look like this:
+
+```python
+import datetime
+print('Hello world', datetime.datetime.utcnow().isoformat())
+```
+
+This should give us enough information to know when it run. Let's try again.
+TODO: Explain what diff does
+
+```
+[I] (test-project) javier@sam ~/t/test-project (master) [1]> python main.py
+[I] (test-project) javier@sam ~/t/test-project (master)>
+diff -u executed_notebook.ipynb test-notebook.ipynb
+--- executed_notebook.ipynb     2019-04-11 21:09:29.897578695 +0200
++++ test-notebook.ipynb 2019-04-11 21:08:23.333905355 +0200
+@@ -2,14 +2,14 @@
+  "cells": [
+   {
+    "cell_type": "code",
+-   "execution_count": 1,
++   "execution_count": 2,
+    "metadata": {},
+    "outputs": [
+     {
+      "name": "stdout",
+      "output_type": "stream",
+      "text": [
+-      "Hello world 2019-04-11T19:09:29.084740\n"
++      "Hello world 2019-04-11T19:08:08.947446\n"
+      ]
+     }
+    ],
+```
+
+Here we can see how the time is being outputted in UTC. If we run it again, we can see it's working.
+
+Let's now work on the second part. Exporting it to PDF.
+
+### Using the IDE and exploring other packages
+
+One of the good things of having an IDE is the ability to navigate the code when in doubt on how to use it.
+
+In this case, [from the documentation](https://nbconvert.readthedocs.io/en/latest/nbconvert_library.html#Quick-overview) we can see that `Exporter` is the python class that allow us to export to different formats.
+
+This means that if we find all the classes defined in all the libraries we depend on, we are bound to find one that exports to PDF.
+
+[We could search in Google for the pdf exporter without having to dive in the code](https://www.google.com/search?q=nbconvert+pdf+exporter), but I want to showcase what some of the IDE's powers are, besides putting nice colours to the code.
+
+In this case, let's try by writing a `write_pdf` function that given a notebook and a file name, exports the notebook to that filename as a pdf. On it for now, let's just write `Exporter` on it.
+
+```python
+def write_pdf(notebook, pdf_file='notebook.pdf'):
+    Exporter
+```
+
+After writing it, we will probably see some red lines and complaints from Pycharm like the following image.
+
+![Pycharm complains when there is no import](images/09-pycharm-exporter-normal.png)
+
+And now, get ready for the magic of an IDE. Remember how we said before that when opening a project it would index the files? This enables aditional functionality that you wouldn't dream of in a text editor. And that's called Autocomplete with IntelliSense.
+
+To trigger the autocompletion with steroids, do `ctrl-space` once (no autocompletion is suggested) (in Mac it may be `cmd-space`), and twice.
+
+![Pycharm ctrl-space twice triggers the magic](images/10-pycharm-exporter-autocomplete.png)
+
+As you can see, Pycharm sugests as a bunch of objects he can find that have `Exporter` in their name. We can now use de arrows to navigate to `PDFExporter` and click enter.
+
+This will do two changes to our code, which will make the red line dissappear.
+
+- Where we wrote `Exporter` we will find `PDFExporter`
+- On the top of the file, we will find a new import statement, `from nbconvert import PDFExporter`
+
+This is all automatically done by Pycharm to help us developing.
+
+There is one last thing that Pycharm enables as to do, and that's navigation. If you hold the `ctrl` key pressed, and click on `PDFExporter`, it will navigate to the file that defines `PDFExporter`.
+
+This is extremely helpful in the situations where we have doubt on how exactly to use a function or a class, or what it does.
