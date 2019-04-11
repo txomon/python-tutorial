@@ -2,6 +2,7 @@
 
 - [Python Tutorial with Git, Gitlab-CI, Cloudbuild-CI, Docker, Gcloud](#python-tutorial-with-git-gitlab-ci-cloudbuild-ci-docker-gcloud)
   - [FAQ: Why would I want to read this?](#faq-why-would-i-want-to-read-this)
+  - [FAQ: What are we going to be doing here?](#faq-what-are-we-going-to-be-doing-here)
   - [Understanding the python path](#understanding-the-python-path)
   - [Understanding the global environment](#understanding-the-global-environment)
     - [Script directory or current directory](#script-directory-or-current-directory)
@@ -17,24 +18,30 @@
   - [Creating a python project](#creating-a-python-project)
     - [Opening a folder as a project with Pytharm](#opening-a-folder-as-a-project-with-pytharm)
       - [(Advanced) Selecting external virtualenv](#advanced-selecting-external-virtualenv)
-    - [Coding our first script](#coding-our-first-script)
+    - [Planning our work](#planning-our-work)
+      - [Searching in Google what we want to do](#searching-in-google-what-we-want-to-do)
+      - [Installing jupyter notebook as a dependency](#installing-jupyter-notebook-as-a-dependency)
+      - [Create quick mock notebook](#create-quick-mock-notebook)
     - [Initializing a git repository](#initializing-a-git-repository)
       - [Setting up git](#setting-up-git)
+    - [Adding initial files to git](#adding-initial-files-to-git)
+
+---
+
 Disclaimer: I have simplified and overlooked details in this guide.
 
 This tutorial assumes you have read the [Python101 slides](https://docs.google.com/presentation/d/1WdBEU1BSDfEKHkLxY2IksiaAqXJBSKPUc_0Q4UJAtIY/edit):
 
-* Python 3 is properly installed
-* There are no other tools interferring with the python setup
-* Steps that require admin permission will be explicitly marked.
+- Python 3 is properly installed
+- There are no other tools interferring with the python setup
+- Steps that require admin permission will be explicitly marked.
 
 Limitations of the tutorial:
 
-* Because on how python is setup, we will be limited to running one python 2 version and one python 3 version.
-
-  * After finishing this tutorial, if running several python 3 versions is required, I recommend to have a look on [Pyenv](https://github.com/pyenv/pyenv)
-  * If running windows, I'm afraid you will need to resort to conda.
-* After thinking about it for a good while, I don't want to explain everything from the very beginning. If in doubt, I try to follow the Zen of python:
+- Because on how python is setup, we will be limited to running one python 2 version and one python 3 version.
+  - After finishing this tutorial, if running several python 3 versions is required, I recommend to have a look on [Pyenv](https://github.com/pyenv/pyenv)
+  - If running windows, I'm afraid you will need to resort to conda.
+- After thinking about it for a good while, I don't want to explain everything from the very beginning. If in doubt, I try to follow the Zen of python:
 
 ```text
 [I] (test-project) javier@sam ~/t/test-project (master)> python -c 'import this'
@@ -67,6 +74,25 @@ This guide will explain how python works as an execution environment, where the 
 
 The idea is that this knowledge will allow you to be confident that you won't be breaking your computer, and that you will understand how the different commands you run affect your installation.
 
+## FAQ: What are we going to be doing here?
+
+The sumup: We are going to create an app that when executed, will run some analysis on data, generate a report using jupyter notebook, and upload it as a pdf to GCS.
+
+The overview of the whole process:
+
+- Learn how python works
+- Use Git in a basic way
+- Create and package a python project
+- Using a mix of modules and jupyter notebooks we will
+  - Load the data and tranform it with pandas
+  - Visualize the data in the jupyter notebooks
+  - Generate pdf reports out of the notebooks
+  - Upload the pdf reports to Google Cloud Storage
+- Containerize the project
+- Setup CI/CD using gitlabci and GCP cloudbuild
+- Schedule it with Airflow using the KubernetesPodOperator
+- Send the pdf by email
+
 ## Understanding the python path
 
 `import sys` will trigger a lookup in the so called Python Path, looking for a package or module with that name to import.
@@ -93,8 +119,8 @@ By default, `python` will use the global environment, which is installed along p
 
 Python installation can be divided in 2:
 
-* Packages that are part of the core of python (such as `os`, `sys`, `time`)
-* Packages that are external to the python language project (such as `pipenv`, `virtualenv`, `numpy`)
+- Packages that are part of the core of python (such as `os`, `sys`, `time`)
+- Packages that are external to the python language project (such as `pipenv`, `virtualenv`, `numpy`)
 
 When choosing installations, the core of python will be setup in the python version folder, where as the other packages will be setup in the `site-packages` folder.
 
@@ -123,7 +149,7 @@ Have a look at [https://github.com/txomon/python-paths](https://github.com/txomo
 
 In this case `/usr/local/lib/python3.7` is the place where all python is installed:
 
-```
+```text
 root@6c4b4dd258dd:/# ls /usr/local/lib/python3.7/ | tail
 datetime.py
 ...
@@ -261,11 +287,11 @@ Feel free to install new packages using pipenv, and check how the `site-packages
 
 Before starting off with the first project, I would consider a few things that usually developer come across on their own:
 
-* Spaces in directories or files are forbidden. They cause a ton of trouble and we end up paying the price way later when changing paths it's practically impossible
-* Create a directory to hold all our code. Having projects in the desktop is handy, but code ends up getting mixed with downloads and what not, and that gets unmanageable quickly. Here there are a few approaches:
-  * Directory in the root called "projects" or "code" (`/projects/`)
-  * Directory in HOME (`/home/javier/projects/`), supposing the path doesn't contain any space, called "projects" or "code"
-  * Same thing as before, but organising the code in subfolders (per project for example)
+- Spaces in directories or files are forbidden. They cause a ton of trouble and we end up paying the price way later when changing paths it's practically impossible
+- Create a directory to hold all our code. Having projects in the desktop is handy, but code ends up getting mixed with downloads and what not, and that gets unmanageable quickly. Here there are a few approaches:
+  - Directory in the root called "projects" or "code" (`/projects/`)
+  - Directory in HOME (`/home/javier/projects/`), supposing the path doesn't contain any space, called "projects" or "code"
+  - Same thing as before, but organising the code in subfolders (per project for example)
 
 ## Creating a python project
 
@@ -339,22 +365,94 @@ If we were adding a virtualenv that is not through `pipenv`, would head to the f
 
 ![Select virtualenv directly](images/05-pick-virtualenv.png)
 
-### Coding our first script
+### Planning our work
 
 There are steps that can be done out of order, and we could create if we wanted all the scaffolding of the project first, but I just hate overcomplicating things from the beginning, and I don't want to do it now.
 
 I always start coding in a single script file that I call `main.py`, and for now, we will be coding everything there.
 
-TODO
+The first piece of work we want to do is to run a jupyter notebook and generate a pdf out of it. For this, we just go on our favourite search engine and see any prior art.
 
-----
+#### Searching in Google what we want to do
+
+The first thing I do is to look for `run jupyter notebook and generate pdf` in google. This brings me to a [StackOverflow question whereeone asks how to convert an .ipynb format into html and pdf](https://stackoverflow.com/questions/15998491/how-to-convert-ipython-notebooks-to-pdf-and-html/25942111). Looking at the updated answer, it seems like the answer is a bit outdated, but it points us in the right direction, `jupyter nbconvert` is a tool done by the guys that maintain `jupyter notebook`.
+
+Therefore, the next search is `jupyter nbconvert`. The first result is [the github repository (for me)](https://github.com/jupyter/nbconvert), which in the title has a link to [the documentation](https://nbconvert.readthedocs.io/en/latest/).
+
+We still don't have clear if `jupyter nbconvert` will only allow us to convert the jupyter notebooks to pdf or if it will also allow us to run the notebooks. However, [it does seem like nbconvert supports being used as a library](https://nbconvert.readthedocs.io/en/latest/nbconvert_library.html), which would allow us to do the conversion from code and avoid having to create an script to orchestrate everything.
+
+If we continue looking on the TOC on the left, we can see a suggestive title [Executing notebooks](https://nbconvert.readthedocs.io/en/latest/execute_api.html), which after clicking on it shows us a usage example of how to execute a notebook from code.
+
+With all this, it seems like we can indeed write code that will execute the notebook, and generate a pdf without writing any of the logic to do it ourselves!
+
+Now we just need to code the glue to make it happen.
+
+#### Installing jupyter notebook as a dependency
+
+Let's start by adding jupyter notebook as a dependency.
+
+```text
+[I] (test-project) javier@sam ~/t/test-project (master)> pipenv install jupyter[all]
+Installing jupyter[all]…
+Adding jupyter to Pipfile's [packages]…
+✔ Installation Succeeded
+Pipfile.lock not found, creating…
+Locking [dev-packages] dependencies…
+Locking [packages] dependencies…
+✔ Success!
+Updated Pipfile.lock (05691a)!
+Installing dependencies from Pipfile.lock (05691a)…
+  🐍   ▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉ 43/43 — 00:00:07
+```
+
+#### Create quick mock notebook
+
+Let's start the jupyter notebook server, and create a sample notebook.
+
+```text
+[I] (test-project) javier@sam ~/t/test-project (master)> jupyter notebook
+[I 15:33:00.227 NotebookApp] Writing notebook server cookie secret to /run/user/1000/jupyter/notebook_cookie_secret
+[I 15:33:01.164 NotebookApp] Serving notebooks from local directory: /home/javier/tmp/test-project
+[I 15:33:01.164 NotebookApp] The Jupyter Notebook is running at:
+[I 15:33:01.164 NotebookApp] http://localhost:8888/?token=f35dc86611e047db906947d7615187355879813abeba6a58
+[I 15:33:01.164 NotebookApp] Use Control-C to stop this server and shut down all kernels (twice to skip confirmation).
+[C 15:33:01.205 NotebookApp]
+
+    To access the notebook, open this file in a browser:
+        file:///run/user/1000/jupyter/nbserver-19259-open.html
+    Or copy and paste one of these URLs:
+        http://localhost:8888/?token=f35dc86611e047db906947d7615187355879813abeba6a58
+```
+
+This should open the jupyter notebook interface in your default browser (if it doesn't just click the link right there).
+
+After it opens, let's just create a new Python 3 notebook
+
+![Create a Python 3 notebook](images/06-new-jupyter-notebook.png)
+
+Then, we write some hello world code in it:
+
+```python
+print('Hello world')
+```
+
+![Put some hello world code on it](images/07-test-notebook.png)
+
+And we save it as `test-notebook`, which will create the file `test-notebook.ipynb` in our directory.
+
+![Create a test notebook file](images/08-save-notebook.png)
+
+For now, we don't need the jupyter notebook server anymore. We only care about the code. Let's exit the notebook with `ctrl-c` in the terminal, and confirm with `y`.
+
+When working in a git repo, we won't usually do `ls` to check the files, we do `git status`, as we don't usually care about untracked files. Therefore, let move onto creating a git repo, as we start to have at least three files we care about.
+
 ### Initializing a git repository
 
 Each project should run in it's own git repository. Having more than one project per git repository will give us infinite headaches in the future, so the recommendation is to avoid it by having everything cleanly separated.
 
 To create a git repository, run `git init`
 
-```
+```text
 [I] (test-project) javier@sam ~/t/test-project> git init
 Initialized empty Git repository in /home/javier/tmp/test-project/.git/
 ```
@@ -380,3 +478,81 @@ In my case, these are the files that I ignore:
 ```
 
 I mainly use IntelliJ base IDEs (By JetBrains), and I'm starting to use visual studio code (By microsoft, but opensource) more lately. The other two lines refer to files when there is a git merge collision.
+
+### Adding initial files to git
+
+Once we have created the `test-notebook.ipynb` throught the jupyter notebook, we have already something that we can start thinking about adding to the repo.
+
+If we check `git status` it should show something like the following:
+
+```text
+[I] (test-project) javier@sam ~/t/test-project (master)> git status
+On branch master
+
+No commits yet
+
+Changes to be committed:
+  (use "git rm --cached <file>..." to unstage)
+
+        new file:   Pipfile
+        new file:   Pipfile.lock
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+
+        .ipynb_checkpoints/
+        Untitled.ipynb
+        test-notebook.ipynb
+```
+
+An extra notebook may have been created, or even some files added by pycharm when a few pop-ups came to us and we clicked OK on them without reading.
+
+In my case, I have a few things to clean up:
+
+- I need to get rid of the `.ipynb_checkpoints/` folder, as after a quick search in google it seems some kind of side-effect of using jupyter notebook server.
+- I need to delete `Untitled.ipynb` because I only need the `test-notebook.ipynb`
+
+For the first one, adding the whole folder to `.gitignore` will do. The second one is just a normal remove.
+
+```text
+[I] (test-project) javier@sam ~/t/test-project (master)> echo '.ipynb_checkpoints/'>>.gitignore
+[I] (test-project) javier@sam ~/t/test-project (master)> rm Untitled.ipynb
+[I] (test-project) javier@sam ~/t/test-project (master)> git status
+On branch master
+
+No commits yet
+
+Changes to be committed:
+  (use "git rm --cached <file>..." to unstage)
+
+        new file:   Pipfile
+        new file:   Pipfile.lock
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+
+        .gitignore
+        test-notebook.ipynb
+```
+
+Now, we can add all the files as they are. Usually I will add the files to `git` but nothing else, as I don't have any first version of the code I want to run.
+
+```text
+[I] (test-project) javier@sam ~/t/test-project (master)> git add .
+[I] (test-project) javier@sam ~/t/test-project (master)> git status
+On branch master
+
+No commits yet
+
+Changes to be committed:
+  (use "git rm --cached <file>..." to unstage)
+
+        new file:   .gitignore
+        new file:   Pipfile
+        new file:   Pipfile.lock
+        new file:   test-notebook.ipynb
+
+```
+
+Everything looks ok, so let's proceed.
+
