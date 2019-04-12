@@ -16,7 +16,7 @@
     - [Virtualenv paths](#virtualenv-paths)
   - [About directories and working environments](#about-directories-and-working-environments)
   - [Creating a python project](#creating-a-python-project)
-    - [Opening a folder as a project with Pytharm](#opening-a-folder-as-a-project-with-pytharm)
+    - [Opening a directory as a project with Pycharm](#opening-a-directory-as-a-project-with-pycharm)
       - [(Advanced) Selecting external virtualenv](#advanced-selecting-external-virtualenv)
     - [Planning our work](#planning-our-work)
       - [Searching in Google what we want to do](#searching-in-google-what-we-want-to-do)
@@ -37,6 +37,10 @@
     - [From script to package](#from-script-to-package)
       - [Running packages directly with python](#running-packages-directly-with-python)
       - [Packaging projects](#packaging-projects)
+      - [Creating a command](#creating-a-command)
+      - [Adding some Google Cloud Platform integration](#adding-some-google-cloud-platform-integration)
+      - [Pip installations](#pip-installations)
+        - [Word of advice on running setup.py directly](#word-of-advice-on-running-setuppy-directly)
 
 ---
 
@@ -45,13 +49,13 @@ Disclaimer: I have simplified and overlooked details in this guide.
 This tutorial assumes you have read the [Python101 slides](https://docs.google.com/presentation/d/1WdBEU1BSDfEKHkLxY2IksiaAqXJBSKPUc_0Q4UJAtIY/edit):
 
 - Python 3 is properly installed
-- There are no other tools interferring with the python setup
+- There are no other tools interfering with the python setup
 - Steps that require admin permission will be explicitly marked.
 
 Limitations of the tutorial:
 
 - Because on how python is setup, we will be limited to running one python 2 version and one python 3 version.
-  - After finishing this tutorial, if running several python 3 versions is required, I recommend to have a look on [Pyenv](https://github.com/pyenv/pyenv)
+  - After finishing this tutorial, if running several python 3 versions is required, I recommend to have a look on [pyenv](https://github.com/pyenv/pyenv)
   - If running windows, I'm afraid you will need to resort to conda.
 - After thinking about it for a good while, I don't want to explain everything from the very beginning. If in doubt, I try to follow the Zen of python:
 
@@ -88,7 +92,7 @@ The idea is that this knowledge will allow you to be confident that you won't be
 
 ## FAQ: What are we going to be doing here?
 
-The sumup: We are going to create an app that when executed, will run some analysis on data, generate a report using jupyter notebook, and upload it as a pdf to GCS.
+The sum-up: We are going to create an app that when executed, will run some analysis on data, generate a report using jupyter notebook, and upload it as a pdf to GS.
 
 The overview of the whole process:
 
@@ -99,9 +103,9 @@ The overview of the whole process:
   - Load the data and tranform it with pandas
   - Visualize the data in the jupyter notebooks
   - Generate pdf reports out of the notebooks
-  - Upload the jupyter notebook and the pdf reports to Google Cloud Storage (GCS)
+  - Upload the jupyter notebook and the pdf reports to Google Cloud Storage (GS)
 - Containerize the project
-- Setup CI/CD using gitlabci and GCP cloudbuild
+- Setup CI/CD using gitlab-ci and GCP cloudbuild
 - Schedule it with Airflow using the KubernetesPodOperator
 - Send the pdf by email
 
@@ -109,7 +113,7 @@ The overview of the whole process:
 
 `import sys` will trigger a lookup in the so called Python Path, looking for a package or module with that name to import.
 
-Our ability to import modules greatly depends on this caracteristic of Python. The Python path is similar to the shell PATH variable.
+Our ability to import modules greatly depends on this characteristic of Python. The Python path is similar to the shell PATH variable.
 
 In all the systems, the PATH variable marks where to look for binaries. Therefore, running `base64`, will look on all those places, and the first match will be the one executed.
 
@@ -127,14 +131,14 @@ virtualenv==16.4.3
 virtualenv-clone==0.5.2
 ```
 
-By default, `python` will use the global environment, which is installed along python. When speaking about environment, I refer to the `site-packages` folder.
+By default, `python` will use the global environment, which is installed along python. When speaking about environment, I refer to the `site-packages` directory.
 
 Python installation can be divided in 2:
 
 - Packages that are part of the core of python (such as `os`, `sys`, `time`)
 - Packages that are external to the python language project (such as `pipenv`, `virtualenv`, `numpy`)
 
-When choosing installations, the core of python will be setup in the python version folder, where as the other packages will be setup in the `site-packages` folder.
+When choosing installations, the core of python will be setup in the python version directory, where as the other packages will be setup in the `site-packages` directory.
 
 Example output of the environment:
 
@@ -147,7 +151,7 @@ root@6c4b4dd258dd:/# python -c 'import sys;print("\n".join(sys.path))'
 /usr/local/lib/python3.7/site-packages
 ```
 
-As we can see in the printed paths, there are quite a few folders and files there. Let's have a look on them.
+As we can see in the printed paths, there are quite a few directories and files there. Let's have a look on them.
 
 Although I'm going to explain what these directories contain, I have sorted the directories by relevance marking 2 of them as optional.
 
@@ -174,9 +178,9 @@ As we can see, the typical first level import modules are present there.
 
 ### Site packages
 
-Site packages is the name of the folder where we store all python packages and modules that are not developed and distributed by the python organization.
+Site packages is the name of the directory where we store all python packages and modules that are not developed and distributed by the python organization.
 
-In this case `/usr/local/lib/python3.7/site-packages` is the system site-packages folder.
+In this case `/usr/local/lib/python3.7/site-packages` is the system site-packages directory.
 
 As we can see, all the packages that were installed for pipenv are available here:
 
@@ -236,9 +240,9 @@ A virtual environment to put it simple is just a new location that is inserted e
 
 ### Installing pipenv
 
-Although I have said it implicitly, from this part on we will need to have pipenv installed. To do so, with no virtualenv activated and admin priviledges run `pip install pipenv`.
+Although I have said it implicitly, from this part on we will need to have pipenv installed. To do so, with no virtualenv activated and admin privileges run `pip install pipenv`.
 
-If using linux, your distribution probably has packaged pipenv as `python-pipenv` or something similar. In OSX, I would discourage installing python packages through brew, it works somewhat weirdly, and we just want one package in the global `site-packages` + a binary in the bin folder.
+If using linux, your distribution probably has packaged pipenv as `python-pipenv` or something similar. In OSX, I would discourage installing python packages through brew, it works somewhat weirdly, and we just want one package in the global `site-packages` + a binary in the bin directory.
 
 ### Creating a virtual environment with pipenv
 
@@ -303,7 +307,7 @@ Before starting off with the first project, I would consider a few things that u
 - Create a directory to hold all our code. Having projects in the desktop is handy, but code ends up getting mixed with downloads and what not, and that gets unmanageable quickly. Here there are a few approaches:
   - Directory in the root called "projects" or "code" (`/projects/`)
   - Directory in HOME (`/home/javier/projects/`), supposing the path doesn't contain any space, called "projects" or "code"
-  - Same thing as before, but organising the code in subfolders (per project for example)
+  - Same thing as before, but organising the code in subdirectories (per project for example)
 
 ## Creating a python project
 
@@ -337,19 +341,19 @@ in/activate192fde:~/test-project#  . /root/.local/share/virtualenvs/test-project
 (test-project) root@c88f7f192fde:~/test-project#
 ```
 
-### Opening a folder as a project with Pytharm
+### Opening a directory as a project with Pycharm
 
-We can now open this folder with pycharm. Depending on the setup, pycharm may be available from the command line. But for sake of simplicitly let's just assume we open it graphically.
+We can now open the `test-project` directory with pycharm. Depending on the setup, pycharm may be available from the command line. But for sake of simplicity let's just assume we open it graphically.
 
-It is really important to keep in mind that opening a file is not the same as opening a folder (AKA project). When we open a file with Pycharm, it's the same as opening the file with notepad++. It will colour the words, but it will not work as an IDE.
+It is really important to keep in mind that opening a file is not the same as opening a directory (AKA project). When we open a file with Pycharm, it's the same as opening the file with notepad++. It will colour the words, but it will not work as an IDE.
 
-When we open a folder with Pycharm, it automatically tries to index all the contents of the folder, and generate autocomplete and other features. In some cases it will autodetect the virtual environment, and link our imports to the real packages.
+When we open a directory with Pycharm, it automatically tries to index all the contents of the directory, and generate autocomplete and other features. In some cases it will autodetect the virtual environment, and link our imports to the real packages.
 
-![Opening a folder with pycharm](images/01-open-project.png)
+![Opening a directory with pycharm](images/01-open-project.png)
 
 We will see that pycharm automatically starts working and doing things (we can check this in the bottom status bar, on the right side)
 
-The first thing to do when we open a new folder with pycharm is to check what is the python interpreter is using. Pycharm calls it python interpreter as a way to group a virtualenv, remote python installations and the global local installation.
+The first thing to do when we open a new directory with pycharm is to check what is the python interpreter is using. Pycharm calls it python interpreter as a way to group a virtualenv, remote python installations and the global local installation.
 
 To setup the python interpreter, we can head to `Settings -> Project: project-name -> Project Interpreter`
 
@@ -387,7 +391,7 @@ The first piece of work we want to do is to run a jupyter notebook and generate 
 
 #### Searching in Google what we want to do
 
-The first thing I do is to look for `run jupyter notebook and generate pdf` in google. This brings me to a [StackOverflow question whereeone asks how to convert an .ipynb format into html and pdf](https://stackoverflow.com/questions/15998491/how-to-convert-ipython-notebooks-to-pdf-and-html/25942111). Looking at the updated answer, it seems like the answer is a bit outdated, but it points us in the right direction, `jupyter nbconvert` is a tool done by the guys that maintain `jupyter notebook`.
+The first thing I do is to look for `run jupyter notebook and generate pdf` in google. This brings me to a [StackOverflow question where a asks how to convert an .ipynb format into html and pdf](https://stackoverflow.com/questions/15998491/how-to-convert-ipython-notebooks-to-pdf-and-html/25942111). Looking at the updated answer, it seems like the answer is a bit outdated, but it points us in the right direction, `jupyter nbconvert` is a tool done by the guys that maintain `jupyter notebook`.
 
 Therefore, the next search is `jupyter nbconvert`. The first result is [the github repository (for me)](https://github.com/jupyter/nbconvert), which in the title has a link to [the documentation](https://nbconvert.readthedocs.io/en/latest/).
 
@@ -402,7 +406,6 @@ Now we just need to code the glue to make it happen.
 #### Installing jupyter notebook as a dependency
 
 Let's start by adding jupyter notebook as a dependency. This can be done with `pipenv install jupyter[all]`. The brackets are special pip syntax to specify extras. Extras are meant to enable non-core functionality by installing some optional dependencies. In python projects, people will often mention things like "Install pdf extras to get pdf printing functionality"
-
 
 ```text
 [I] (test-project) javier@sam ~/t/test-project (master)> pipenv install jupyter[all]
@@ -478,7 +481,7 @@ There are two main things that I always setup when using git. First one is to ma
 
 `.gitignore` is the file that is usually in the repository to ignore files, however, the `.gitignore` shipped in the repos should only ignore files that are a sideeffect of the project. **The fact that we use one editor or another should be unknown to the project**
 
-The global gitignore is the file `~/.config/git/ignore`, if the folder doesn't exist, just create it with `mkdir -p ~/.config/git/`. The contents vary between different people.
+The global gitignore is the file `~/.config/git/ignore`, if the directory doesn't exist, just create it with `mkdir -p ~/.config/git/`. The contents vary between different people.
 
 In my case, these are the files that I ignore:
 
@@ -494,7 +497,7 @@ I mainly use IntelliJ base IDEs (By JetBrains), and I'm starting to use visual s
 
 ### Adding initial files to git
 
-Once we have created the `test-notebook.ipynb` throught the jupyter notebook, we have already something that we can start thinking about adding to the repo.
+Once we have created the `test-notebook.ipynb` through the jupyter notebook, we have already something that we can start thinking about adding to the repo.
 
 If we check `git status` it should show something like the following:
 
@@ -522,10 +525,10 @@ An extra notebook may have been created, or even some files added by pycharm whe
 
 In my case, I have a few things to clean up:
 
-- I need to get rid of the `.ipynb_checkpoints/` folder, as after a quick search in google it seems some kind of side-effect of using jupyter notebook server.
+- I need to get rid of the `.ipynb_checkpoints/` directory, as after a quick search in google it seems some kind of side-effect of using jupyter notebook server.
 - I need to delete `Untitled.ipynb` because I only need the `test-notebook.ipynb`
 
-For the first one, adding the whole folder to `.gitignore` will do. The second one is just a normal remove.
+For the first one, adding the whole directory to `.gitignore` will do. The second one is just a normal remove.
 
 ```text
 [I] (test-project) javier@sam ~/t/test-project (master)> echo '.ipynb_checkpoints/'>>.gitignore
@@ -712,7 +715,7 @@ print('Hello world', datetime.datetime.utcnow().isoformat())
 This should give us enough information to know when it run. Let's try again.
 TODO: Explain what diff does
 
-```
+```text
 [I] (test-project) javier@sam ~/t/test-project (master) [1]> python main.py
 [I] (test-project) javier@sam ~/t/test-project (master)>
 diff -u executed_notebook.ipynb test-notebook.ipynb
@@ -762,13 +765,13 @@ After writing it, we will probably see some red lines and complaints from Pychar
 
 ![Pycharm complains when there is no import](images/09-pycharm-exporter-normal.png)
 
-And now, get ready for the magic of an IDE. Remember how we said before that when opening a project it would index the files? This enables aditional functionality that you wouldn't dream of in a text editor. And that's called Autocomplete with IntelliSense.
+And now, get ready for the magic of an IDE. Remember how we said before that when opening a project it would index the files? This enables additional functionality that you wouldn't dream of in a text editor. And that's called Autocomplete with IntelliSense.
 
 To trigger the autocompletion with steroids, do `ctrl-space` once (no autocompletion is suggested) (in Mac it may be `cmd-space`), and twice.
 
 ![Pycharm ctrl-space twice triggers the magic](images/10-pycharm-exporter-autocomplete.png)
 
-As you can see, Pycharm sugests as a bunch of objects he can find that have `Exporter` in their name. We can now use de arrows to navigate to `PDFExporter` and click enter.
+As you can see, Pycharm suggests as a bunch of objects he can find that have `Exporter` in their name. We can now use de arrows to navigate to `PDFExporter` and click enter.
 
 This will do two changes to our code, which will make the red line dissappear.
 
@@ -920,7 +923,7 @@ We have all the dependencies specified in `Pipfile` and `Pipfile.lock`.
 
 We are leaving the business logic for the end because my focus is to speak about all the tooling around python.
 
-Right now, our code is executing as an script. The objective of this section is to make look that main as something more proffessional and distributable.
+Right now, our code is executing as an script. The objective of this section is to make look that main as something more professional and distributable.
 
 The idea is to move from running it like
 
@@ -944,11 +947,11 @@ The main objective of this python package is to be part of a data pipeline.
 
 ### From script to package
 
-This move is not really required, you can distribute python modules directly without being in a folder. However I have found that with time, all the applications are better split across different files, and these files are better off together inside a package.
+This move is not really required, you can distribute python modules directly without being in a directory. However I have found that with time, all the applications are better split across different files, and these files are better off together inside a package.
 
-A package is a folder with a `__init__.py` in it. Therefore, let's:
+A package is a directory with a `__init__.py` in it. Therefore, let's:
 
-1. Create the folder `jr` for jupyter runner
+1. Create the directory `jr` for jupyter runner
 1. Create an empty `jr/__init__.py` file,
 1. Move `main.py` to `jr/main.py`
 1. Extract the last two lines from `main.py` to `__main__.py`
@@ -1040,7 +1043,7 @@ Changes to be committed:
 
 #### Packaging projects
 
-We have seen that there exists a folder where our source code is meant to be if it is being distributed, or installed, and that is the `site-packages` folder.
+We have seen that there exists a directory where our source code is meant to be if it is being distributed, or installed, and that is the `site-packages` directory.
 
 How do we get our code there?
 
@@ -1051,4 +1054,385 @@ In python, there is a file by convention called `setup.py` that contains all the
 For now, we will start with a quick snippet:
 
 ```python
+from setuptools import setup, find_packages
+
+setup(
+    name='jr',
+    description='Jupyter runner',
+    version='0.0.1',
+    packages=find_packages(),
+)
 ```
+
+You can check in the docs what all this does more in detail, but we will just say that we are going to distribute a package called `jr` with version `0.0.1` and that it will distribute only the packages it finds in the current directory (`jk` for us).
+
+With this, we can do finally an install of our source code in `site-packages`. This can be done with pip.
+
+```text
+[I] (test-project) javier@sam ~/t/test-project (master)> pip install .
+Processing /home/javier/tmp/test-project
+Building wheels for collected packages: jr
+  Building wheel for jr (setup.py) ... done
+  Stored in directory: /home/javier/.cache/pip/wheels/2d/8a/23/17a0a65b3b3954dc19d8bdcde27c3dc5d17f8cdeb36bde2338
+Successfully built jr
+Installing collected packages: jr
+Successfully installed jr-0.0.1
+```
+
+We can see a few things happening here. First, there is something about a wheel. Wheels are the new format of distributing python, they support binaries on them, which eases distribution of complex packages. I won't go into details in this guide, but you are free to google.
+
+Second, it seems like it did some kind of build and installation.
+
+Let's check if `jr` package is indeed distributed.
+
+```text
+[I] (test-project) javier@sam ~/t/test-project (master)> ls /home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/jr
+__init__.py  __main__.py  main.py  __pycache__
+```
+
+It seems to be there. Let's try to go to other directory and check if it runs:
+
+```text
+[I] (test-project) javier@sam ~/t/test-project (master)> cd jr
+[I] (test-project) javier@sam ~/t/t/jr (master)> python -m jr
+Traceback (most recent call last):
+  File "/usr/lib64/python3.7/runpy.py", line 193, in _run_module_as_main
+    "__main__", mod_spec)
+  File "/usr/lib64/python3.7/runpy.py", line 85, in _run_code
+    exec(code, run_globals)
+  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/jr/__main__.py", line 7, in <module>
+    main()
+  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/jr/main.py", line 28, in main
+    notebook = run_notebook()
+  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/jr/main.py", line 7, in run_notebook
+    with open(notebook_file) as f:
+FileNotFoundError: [Errno 2] No such file or directory: 'test-notebook.ipynb'
+```
+
+Of course it still fails (in this case because it cannot find the file), but we can see it is actually executing the jr package from `File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/jr/main.py", line 28, in main`
+
+#### Creating a command
+
+Running our code with `python -m jr` is all cool, but we don't really want to tell anyone to run things like that, everyone would prefer to have a more straight way to call the command, for example `jr` or `jupyter-runner`.
+
+We could go crazy about inventing an script that will run the ugly command for us, but setuptools already has a way ready.
+
+[We will be making use of `entry_points`, in specific, the one called `console_scripts`](https://python-packaging.readthedocs.io/en/latest/command-line-scripts.html#the-console-scripts-entry-point).
+
+Usage is easy, you just need to know it exists. Our `setup.py` now will look like this:
+
+```python
+from setuptools import setup, find_packages
+
+setup(
+    name='jr',
+    description='Jupyter runner',
+    version='0.0.1',
+    packages=find_packages(),
+    entry_points={
+        'console_scripts': ['jr=jr.__main__:main'],
+    },
+)
+```
+
+Let's try it out
+
+```text
+[I] (test-project) javier@sam ~/t/test-project (master) [1]> jr
+fish: Unknown command jr
+[I] (test-project) javier@sam ~/t/test-project (master) [127]> python -m jr
+Traceback (most recent call last):
+  File "/usr/lib64/python3.7/runpy.py", line 193, in _run_module_as_main
+    "__main__", mod_spec)
+  File "/usr/lib64/python3.7/runpy.py", line 85, in _run_code
+    exec(code, run_globals)
+  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/jr/__main__.py", line 7, in <module>
+    main()
+  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/jr/main.py", line 28, in main
+    notebook = run_notebook()
+  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/jr/main.py", line 7, in run_notebook
+    with open(notebook_file) as f:
+FileNotFoundError: [Errno 2] No such file or directory: 'test-notebook.ipynb'
+[I] (test-project) javier@sam ~/t/test-project (master) [1]> jr
+fish: Unknown command jr
+```
+
+Seems like it is not there yet. If you guessed, yes, we need to run `pip install .` again.
+
+```text
+[I] (test-project) javier@sam ~/t/test-project (master)> pip install .
+Processing /home/javier/tmp/test-project
+Building wheels for collected packages: jr
+  Building wheel for jr (setup.py) ... done
+  Stored in directory: /home/javier/.cache/pip/wheels/2d/8a/23/17a0a65b3b3954dc19d8bdcde27c3dc5d17f8cdeb36bde2338
+Successfully built jr
+Installing collected packages: jr
+  Found existing installation: jr 0.0.1
+    Uninstalling jr-0.0.1:
+      Successfully uninstalled jr-0.0.1
+Successfully installed jr-0.0.1
+[I] (test-project) javier@sam ~/t/test-project (master)> jr
+Traceback (most recent call last):
+  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/bin/jr", line 10, in <module>
+    sys.exit(main())
+  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/jr/main.py", line 30, in main
+    write_pdf(notebook)
+  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/jr/main.py", line 22, in write_pdf
+    body, resources = pdf_exporter.from_notebook_node(notebook)
+  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/nbconvert/exporters/pdf.py", line 171, in from_notebook_node
+    rc = self.run_latex(tex_file)
+  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/nbconvert/exporters/pdf.py", line 143, in run_latex
+    self.latex_count, log_error)
+  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/nbconvert/exporters/pdf.py", line 105, in run_command
+    "at {link}.".format(formatter=command_list[0], link=link))
+OSError: xelatex not found on PATH, if you have not installed xelatex you may need to do so. Find further instructions at https://nbconvert.readthedocs.io/en/latest/install.html#installing-tex.
+```
+
+We finally have a nice interface to the application. Let's commit this and move onto adding some more business logic.
+
+```text
+[I] javier@sam ~/t/test-project (master)> git status
+On branch master
+Changes to be committed:
+  (use "git reset HEAD <file>..." to unstage)
+
+        new file:   setup.py
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+
+        jr.egg-info/
+
+```
+
+You will realise there is a weird directory called `jr.egg-info/` this is called an egg, and is one of the side-effects of the `pip install .` we did before.
+
+As a side effect, you are right, we need to ignore it `echo '*.egg-info/' >> .gitignore`. After this, we can commit and push.
+
+```text
+[I] javier@sam ~/t/test-project (master)> git commit -m 'Generate setuptools script and cli entrypoint'
+[master b9569f0] Generate setuptools script and cli entrypoint
+ 2 files changed, 15 insertions(+)
+ create mode 100644 setup.py
+```
+
+#### Adding some Google Cloud Platform integration
+
+We are not going to cover much in regards to GCP, but we are going to code a function that given a file content, it uploads it to Google Cloud Storage.
+
+This time I will go into code directly after a quick search in Google.
+
+It seems like we need to install the package `google-cloud-storage`.
+
+After some time of reading, I have come to this code:
+
+```python
+def upload_to_gs(file: str, url: str, file_type='text/plain'):
+    if not url.startswith('gs://'):
+        raise ValueError('URL for GS upload is not of type gs')
+    # We receive urls like `gs://my-bucket/my-object`
+    bucket_name, _, blob_name = url[5:].partition('/')
+    client = Client()
+    bucket = Bucket(name=bucket_name, client=client)
+    blob = Blob(name=blob_name, bucket=bucket)
+    blob.upload_from_filename(file, content_type=file_type)
+```
+
+There are a few things to note:
+
+- I have put type annotations. That's present in line 1, where I am saying that `file` is of type `str`.
+  - Having type annotations helps Pycharm to suggest better autocomplete (Usefull when using `ctrl-space`)
+- I am accepting an URL instead of the names of the bucket and the files separately.
+  - We abstract the lower implementation from what is relevant to the user. The user only cares about the url.
+- I have inverted the if statement.
+  - Python is easy, and everything will work. You should try to have your main logic with as little indentation as possible, and leave the error handling to the less visible part. Avoid indenting
+- I use partition instead of split
+  - Not important in this case, but whenever I just want to split once, I always use partition, it has good performance, and API as it always returns 3 elements
+- I split in several lines the code that could be in one
+  - Maintainability is more important than saving 2us.
+
+Let's use `upload_to_gs` function in the `main` function, and refactor it on the go.
+
+```python
+def main():
+    gs_file = 'gs://random-bucket/filename'
+    notebook = run_notebook(notebook_file='test-notebook.ipynb')
+    with tempfile.TemporaryDirectory() as td:
+        # Export and upload ipynb
+        out_nb = os.path.join(td, 'notebook.ipynb')
+        write_notebook(notebook=notebook, notebook_file=out_nb)
+        upload_to_gs(file=out_nb, url=f'{gs_file}.ipynb')
+        # Export and upload pdf
+        out_pdf = os.path.join(td, 'notebook.pdf')
+        write_pdf(notebook=notebook, pdf_file=out_pdf)
+        upload_to_gs(file=out_pdf, url=f'{gs_file}.pdf',
+                     file_type='application/pdf')
+```
+
+You can probably see that this code doesn't look the best. We have some repetitive lines, and it looks a bit messy. Let's ignore this fact for now
+
+As before, there are some things to note:
+
+- I have started to pass arguments to all the functions
+  - This is because once your codebase starts growing, having static filenames as defaults will lead to errors. Although not showed here, I have removed the defaults from the functions.
+- `run_notebook` is executed outside of the `with` block
+  - With blocks, also called context managers, are supposed to extend just as much as they require, therefore all code that doesn't need to happen in the temporary directory, should be outside of it
+- Use a temporary directory
+  - Python has a really nice API to create temporary files and directories (`tempfile`), and it takes care of the clean-up would anything happen while inside the context manager.
+
+Because the pdf part is not working locally, let's just focus on executing the jupyter notebook and upload it to GCS. Let's comment that section out.
+
+Final result:
+
+```python
+import nbformat
+import os
+import tempfile
+from google.cloud.storage import Blob, Bucket, Client
+from nbconvert import PDFExporter
+from nbconvert.preprocessors import ExecutePreprocessor
+
+
+def run_notebook(notebook_file):
+    with open(notebook_file) as f:
+        nb = nbformat.read(f, as_version=4)
+    ep = ExecutePreprocessor(timeout=600, kernel_name='python3')
+    ep.preprocess(nb, {'metadata': {'path': './'}})
+    return nb
+
+
+def write_notebook(notebook, notebook_file):
+    with open(notebook_file, 'wt') as f:
+        nbformat.write(notebook, f)
+
+
+def write_pdf(notebook, pdf_file):
+    pdf_exporter = PDFExporter()
+    pdf_exporter.template_file = 'report'
+    body, resources = pdf_exporter.from_notebook_node(notebook)
+    with open(pdf_file, 'wb') as fd:
+        fd.write(body)
+
+
+def upload_to_gs(file: str, url: str, file_type='text/plain'):
+    if not url.startswith('gs://'):
+        raise ValueError('URL for GS upload is not of type gs')
+    # We receive urls like `gs://my-bucket/my-object`
+    bucket_name, _, blob_name = url[5:].partition('/')
+    client = Client()
+    bucket = Bucket(name=bucket_name, client=client)
+    blob = Blob(name=blob_name, bucket=bucket)
+    blob.upload_from_filename(file, content_type=file_type)
+
+
+def main():
+    gs_file = 'gs://random-bucket/filename'
+    notebook = run_notebook(notebook_file='test-notebook.ipynb')
+    with tempfile.TemporaryDirectory() as td:
+        # Export and upload ipynb
+        out_nb = os.path.join(td, 'notebook.ipynb')
+        write_notebook(notebook=notebook, notebook_file=out_nb)
+        upload_to_gs(file=out_nb, url=f'{gs_file}.ipynb')
+        # Export and upload pdf
+        # out_pdf = os.path.join(td, 'notebook.pdf')
+        # write_pdf(notebook=notebook, pdf_file=out_pdf)
+        # upload_to_gs(file=out_pdf, url=f'{gs_file}.pdf',
+        #              file_type='application/pdf')
+```
+
+#### Pip installations
+
+And let's run it:
+
+```text
+[I] (test-project) javier@sam ~/t/test-project (master)> jr
+Traceback (most recent call last):
+  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/bin/jr", line 10, in <module>
+    sys.exit(main())
+  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/jr/main.py", line 30, in main
+    write_pdf(notebook)
+  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/jr/main.py", line 22, in write_pdf
+    body, resources = pdf_exporter.from_notebook_node(notebook)
+  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/nbconvert/exporters/pdf.py", line 171, in from_notebook_node
+    rc = self.run_latex(tex_file)
+  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/nbconvert/exporters/pdf.py", line 143, in run_latex
+    self.latex_count, log_error)
+  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/nbconvert/exporters/pdf.py", line 105, in run_command
+    "at {link}.".format(formatter=command_list[0], link=link))
+OSError: xelatex not found on PATH, if you have not installed xelatex you may need to do so. Find
+further instructions at https://nbconvert.readthedocs.io/en/latest/install.html#installing-tex.
+```
+
+What is going on? ...
+
+Easy! Check out the files the exception is coming from! Remember when we did `pip install .`? We said we were copying the code to `site-packages` folder, well, this is the result, doesn't matter how many times we run `jr`, it will be using the old files that have been installed.
+
+To fix this, we can do another `pip install .`
+
+```
+[I] (test-project) javier@sam ~/t/test-project (master) [1]> pip install .
+Processing /home/javier/tmp/test-project
+Building wheels for collected packages: jr
+  Building wheel for jr (setup.py) ... done
+  Stored in directory: /home/javier/.cache/pip/wheels/2d/8a/23/17a0a65b3b3954dc19d8bdcde27c3dc5d17f8cdeb36bde2338
+Successfully built jr
+Installing collected packages: jr
+  Found existing installation: jr 0.0.1
+    Uninstalling jr-0.0.1:
+      Successfully uninstalled jr-0.0.1
+Successfully installed jr-0.0.1
+[I] (test-project) javier@sam ~/t/test-project (master)> jr
+/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/google/auth/_default.py:66: UserWarning: Your application has authenticated using end user credentials from Google Cloud SDK. We recommend that most server applications use service accounts instead. If your application continues to use end user credentials from Cloud SDK, you might receive a "quota exceeded" or "API not enabled" error. For more information about service accounts, see https://cloud.google.com/docs/authentication/
+  warnings.warn(_CLOUD_SDK_CREDENTIALS_WARNING)
+Traceback (most recent call last):
+  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/bin/jr", line 10, in <module>
+    sys.exit(main())
+  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/jr/main.py", line 48, in main
+    upload_to_gs(file=out_nb, url=f'{gs_file}.ipynb')
+  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/jr/main.py", line 35, in upload_to_gs
+    client = Client()
+  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/google/cloud/storage/client.py", line 73, in __init__
+    project=project, credentials=credentials, _http=_http
+  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/google/cloud/client.py", line 223, in __init__
+    _ClientProjectMixin.__init__(self, project=project)
+  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/google/cloud/client.py", line 178, in __init__
+    "Project was not passed and could not be "
+OSError: Project was not passed and could not be determined from the environment.
+```
+
+It seems we are starting to see what we wanted. However, let me tell you one tip. What we did was to install the code in `site-packages`, but this is not really helpful when developing.
+
+Setuptools have another way of installing your code. This is called the editable mode. This editable mode is extremely useful when you are developing a library at the same time as you develop an application. You can have the application and the library each one with their own virtualenv, and have the library installed in editable mode in the application virtualenv so that changes you do in the library reflect automatically in the application.
+
+When doing this, it's **really** important to uninstall a few times. Yes, it does not make sense, but that's it. You need to run `pip uninstall jr` a few times until this happens.
+
+```text
+[I] (test-project) javier@sam ~/t/test-project (master) [1]> pip uninstall jr
+Uninstalling jr-0.0.1:
+  Would remove:
+    /home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/bin/jr
+    /home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/jr-0.0.1.dist-info/*
+    /home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/jr/*
+Proceed (y/n)? y
+  Successfully uninstalled jr-0.0.1
+[I] (test-project) javier@sam ~/t/test-project (master)> pip uninstall jr
+Skipping jr as it is not installed.
+```
+
+An explanation is because you can install a module in editable mode from several locations, and you end up with several installation of the same module.
+
+To finish up, let's install our project in editable mode. For that, `pip install -e .`
+
+```
+[I] (test-project) javier@sam ~/t/test-project (master)> pip install -e .
+Obtaining file:///home/javier/tmp/test-project
+Installing collected packages: jr
+  Running setup.py develop for jr
+Successfully installed jr
+```
+
+##### Word of advice on running setup.py directly
+
+On the internet, and myself before, they often say to run it with `python setup.py develop` or `python setup.py install`.
+
+My experience is that although it always worked for installing the project itself. It failed miserably to resolve dependencies of the project. We are not going to cover it until later, but be wary of directly running `setup.py` for the installations.
