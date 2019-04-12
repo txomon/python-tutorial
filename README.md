@@ -30,6 +30,13 @@
     - [Structuring the code](#structuring-the-code)
     - [Running the initial script](#running-the-initial-script)
     - [Using the IDE and exploring other packages](#using-the-ide-and-exploring-other-packages)
+    - [Dependencies of the code on external tools](#dependencies-of-the-code-on-external-tools)
+    - [Saving the work](#saving-the-work)
+    - [Project status so far](#project-status-so-far)
+  - [From script to packaged cli application](#from-script-to-packaged-cli-application)
+    - [From script to package](#from-script-to-package)
+      - [Running packages directly with python](#running-packages-directly-with-python)
+      - [Packaging projects](#packaging-projects)
 
 ---
 
@@ -92,7 +99,7 @@ The overview of the whole process:
   - Load the data and tranform it with pandas
   - Visualize the data in the jupyter notebooks
   - Generate pdf reports out of the notebooks
-  - Upload the pdf reports to Google Cloud Storage
+  - Upload the jupyter notebook and the pdf reports to Google Cloud Storage (GCS)
 - Containerize the project
 - Setup CI/CD using gitlabci and GCP cloudbuild
 - Schedule it with Airflow using the KubernetesPodOperator
@@ -394,7 +401,8 @@ Now we just need to code the glue to make it happen.
 
 #### Installing jupyter notebook as a dependency
 
-Let's start by adding jupyter notebook as a dependency.
+Let's start by adding jupyter notebook as a dependency. This can be done with `pipenv install jupyter[all]`. The brackets are special pip syntax to specify extras. Extras are meant to enable non-core functionality by installing some optional dependencies. In python projects, people will often mention things like "Install pdf extras to get pdf printing functionality"
+
 
 ```text
 [I] (test-project) javier@sam ~/t/test-project (master)> pipenv install jupyter[all]
@@ -772,3 +780,275 @@ This is all automatically done by Pycharm to help us developing.
 There is one last thing that Pycharm enables as to do, and that's navigation. If you hold the `ctrl` key pressed, and click on `PDFExporter`, it will navigate to the file that defines `PDFExporter`.
 
 This is extremely helpful in the situations where we have doubt on how exactly to use a function or a class, or what it does.
+
+### Dependencies of the code on external tools
+
+We can write the `write_pdf` function [after reading the documentation](https://nbconvert.readthedocs.io/en/latest/nbconvert_library.html#Quick-overview) on how to use the exporter. Also, let's update the main function too,
+
+```python
+def write_pdf(notebook, pdf_file='notebook.pdf'):
+    pdf_exporter = PDFExporter()
+    pdf_exporter.template_file = 'report'
+    body, resources = pdf_exporter.from_notebook_node(notebook)
+    with open(pdf_file, 'wb') as fd:
+        fd.write(body)
+
+
+def main():
+    notebook = run_notebook()
+    write_notebook(notebook)
+    write_pdf(notebook)
+```
+
+If we now try to run the code, we will probably get the following output
+
+```text
+[I] (test-project) javier@sam ~/t/test-project (master)> python main.py
+Traceback (most recent call last):
+  File "main.py", line 34, in <module>
+    main()
+  File "main.py", line 30, in main
+    write_pdf(notebook)
+  File "main.py", line 22, in write_pdf
+    body, resources = pdf_exporter.from_notebook_node(notebook)
+  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/nbconvert/exporters/pdf.py", line 171, in from_notebook_node
+    rc = self.run_latex(tex_file)
+  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/nbconvert/exporters/pdf.py", line 143, in run_latex
+    self.latex_count, log_error)
+  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/nbconvert/exporters/pdf.py", line 105, in run_command
+    "at {link}.".format(formatter=command_list[0], link=link))
+OSError: xelatex not found on PATH, if you have not installed xelatex you may need to do so. Find further instructions at https://nbconvert.readthedocs.io/en/latest/install.html#installing-tex.
+```
+
+In general it's really important to read the text of the errors. Many times people before turning into writing Software will just ignore any error without looking them up or paying much attention. This is extremely common in Windows users because they are accustomed to unhelpful error messages. Please be careful and try to read through all the stuff that you come through when coding.
+
+This exception is telling us that the tool `xelatex` is not in the system, and therefore it cannot proceed. This is because pdf generation depends on latex generation.
+
+We could setup everything locally, but given that our code is just glue code, we will just ignore pdf generation for now, and move onto other more interesting steps.
+
+### Saving the work
+
+If we do a `git status` now, we will find something like the following:
+
+```text
+[I] (test-project) javier@sam ~/t/test-project (master) [1]> git status
+On branch master
+
+No commits yet
+
+Changes to be committed:
+  (use "git rm --cached <file>..." to unstage)
+
+        new file:   .gitignore
+        new file:   Pipfile
+        new file:   Pipfile.lock
+        new file:   test-notebook.ipynb
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git checkout -- <file>..." to discard changes in working directory)
+
+        modified:   test-notebook.ipynb
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+
+        executed_notebook.ipynb
+        main.py
+
+```
+
+We care about all the files but `executed_notebook.ipynb`, as it is a side-effect of our code. We could also argue that `test-notebook.ipynb` is not really needed, as our code doesn't depend on it. But I think we will be keeping it around as it is helpful to have some mock notebook to play with.
+
+Given that `executed_notebook.ipynb` is a side-effect, let's ignore it by adding it to the `.gitignore` file inside the project, like so `echo 'executed_notebook.ipynb' >>.gitignore`.
+
+If we run `git add .` we should now get the following `git status`:
+
+```text
+[I] (test-project) javier@sam ~/t/test-project (master)> echo 'executed_notebook.ipynb' >>.gitignore
+[I] (test-project) javier@sam ~/t/test-project (master)> git add .
+[I] (test-project) javier@sam ~/t/test-project (master)> git status
+On branch master
+
+No commits yet
+
+Changes to be committed:
+  (use "git rm --cached <file>..." to unstage)
+
+        new file:   .gitignore
+        new file:   Pipfile
+        new file:   Pipfile.lock
+        new file:   main.py
+        new file:   test-notebook.ipynb
+
+```
+
+We are finally ready to save the changes for real. We can do so using `git commit`. Please take seriously writting commit messages.
+
+Pro Tip: When writing commit messages, in your mind, try to complete the phrase `If this commit is applied, it will ...`.
+
+```text
+[I] (test-project) javier@sam ~/t/test-project (master)> git commit -am 'Start initial script for execution and exporting
+
+* Create testing jupyter notebook
+* Supports export to PDF and Notebook.'
+[master (root-commit) c1cfa30] Start initial script for execution and exporting
+ 5 files changed, 474 insertions(+)
+ create mode 100644 .gitignore
+ create mode 100644 Pipfile
+ create mode 100644 Pipfile.lock
+ create mode 100644 main.py
+ create mode 100644 test-notebook.ipynb
+```
+
+You probably noticed that my commit message has 4 lines. It is expected that a commit message title will be at most 50 characters long. Any other things you want to say, can go after the blank line. Both the `Pro Tip` from before and this paragraph [are taken from my favourite git-commit blog post by Chris Beams](https://chris.beams.io/posts/git-commit/)
+
+### Project status so far
+
+For now, we have a `main.py` file with 3 functions and a main function:
+
+- `run_notebook` will read an `.ipynb` notebook, run it, and return the executed notebook
+- `write_notebook` will take a notebook object and save it to a file
+- `write_pdf` will presumably export a notebook as PDF
+- `main` will run all the ones before one after another
+
+Besides this, our `main.py` script is supposed to be run with `python main.py`
+
+We have all the dependencies specified in `Pipfile` and `Pipfile.lock`.
+
+## From script to packaged cli application
+
+We are leaving the business logic for the end because my focus is to speak about all the tooling around python.
+
+Right now, our code is executing as an script. The objective of this section is to make look that main as something more proffessional and distributable.
+
+The idea is to move from running it like
+
+```bash
+python main.py
+```
+
+to run like
+
+```bash
+run-jupyter -o gs://example/path/to/file.ipynb test-notebook.ipynb
+```
+
+Remember that in this case our application runs a jupyter notebook, but it could be anything else, not jupyter related.
+
+```bash
+my-fantastic-analysis-tool --date 2019-04-12 --x-value something --loops 9000 -o gs://example/path/output/file
+```
+
+The main objective of this python package is to be part of a data pipeline.
+
+### From script to package
+
+This move is not really required, you can distribute python modules directly without being in a folder. However I have found that with time, all the applications are better split across different files, and these files are better off together inside a package.
+
+A package is a folder with a `__init__.py` in it. Therefore, let's:
+
+1. Create the folder `jr` for jupyter runner
+1. Create an empty `jr/__init__.py` file,
+1. Move `main.py` to `jr/main.py`
+1. Extract the last two lines from `main.py` to `__main__.py`
+
+The final directory layout should look like the following:
+
+```text
+[I] (test-project) javier@sam ~/t/test-project (master)> tree
+.
+├── executed_notebook.ipynb
+├── jr
+│   ├── __init__.py
+│   ├── __main__.py
+│   └── main.py
+├── Pipfile
+├── Pipfile.lock
+└── test-notebook.ipynb
+
+1 directory, 7 files
+```
+
+The big question here is, why are we creating a file called `__main__.py`?
+
+#### Running packages directly with python
+
+Running things as a script messes up the path, [as we have already spoken of before, and demonstrated in the python-paths repo](#script-directory-or-current-directory), therefore it is discarded.
+
+There is however another way to run things in python. And that is by running a module directly. Running `python -m http.server` will start a HTTP server, running `python -m venv ./my-virtualenv` for instance will create a virtual environment in `./my-virtualenv`.
+
+The file `jr/__main__.py` will allow us to run our code as `python -m jr`.
+
+The documentation of this feature can be found in the official docs [https://docs.python.org/3/library/\_\_main\_\_.html](https://docs.python.org/3/library/__main__.html).
+
+Finally, for sake of completeness, the `jr/__main__.py` file should look like this:
+
+```python
+from jr.main import main
+
+if __name__ == '__main__':
+    main()
+```
+
+Having this will allow us to run the code with `python -m jr`
+
+```text
+[I] (test-project) javier@sam ~/t/test-project (master)> python -m jr
+Traceback (most recent call last):
+  File "/usr/lib64/python3.7/runpy.py", line 193, in _run_module_as_main
+    "__main__", mod_spec)
+  File "/usr/lib64/python3.7/runpy.py", line 85, in _run_code
+    exec(code, run_globals)
+  File "/home/javier/tmp/test-project/jr/__main__.py", line 7, in <module>
+    main()
+  File "/home/javier/tmp/test-project/jr/main.py", line 30, in main
+    write_pdf(notebook)
+  File "/home/javier/tmp/test-project/jr/main.py", line 22, in write_pdf
+    body, resources = pdf_exporter.from_notebook_node(notebook)
+  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/nbconvert/exporters/pdf.py", line 171, in from_notebook_node
+    rc = self.run_latex(tex_file)
+  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/nbconvert/exporters/pdf.py", line 143, in run_latex
+    self.latex_count, log_error)
+  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/nbconvert/exporters/pdf.py", line 105, in run_command
+    "at {link}.".format(formatter=command_list[0], link=link))
+OSError: xelatex not found on PATH, if you have not installed xelatex you may need to do so. Find further instructions at https://nbconvert.readthedocs.io/en/latest/install.html#installing-tex.
+```
+
+However, this will only work if we are in the root of the project, nowhere else.
+
+Let's commit all our progress so far:
+
+```text
+[I] (test-project) javier@sam ~/t/test-project (master)> git add .
+[I] (test-project) javier@sam ~/t/test-project (master)> git status
+On branch master
+Changes to be committed:
+  (use "git reset HEAD <file>..." to unstage)
+
+        new file:   jr/__init__.py
+        new file:   jr/__main__.py
+        renamed:    main.py -> jr/main.py
+
+[I] (test-project) javier@sam ~/t/test-project (master)> git commit -am 'Move script into package and declare package main'
+[master 2b12af8] Move script into package and declare package main
+ 3 files changed, 9 insertions(+), 4 deletions(-)
+ create mode 100644 jr/__init__.py
+ create mode 100644 jr/__main__.py
+ rename main.py => jr/main.py (95%)
+```
+
+#### Packaging projects
+
+We have seen that there exists a folder where our source code is meant to be if it is being distributed, or installed, and that is the `site-packages` folder.
+
+How do we get our code there?
+
+In python, there is a file by convention called `setup.py` that contains all the information of the package for packaging and distribution. In this tutorial we are just going to look on the few features we care about.
+
+[The official documentation](https://setuptools.readthedocs.io/en/latest/setuptools.html) holds really good explanation on how to format the file.
+
+For now, we will start with a quick snippet:
+
+```python
+```
