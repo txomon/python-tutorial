@@ -10,11 +10,11 @@
     - [Site packages](#site-packages)
     - [(Advanced) Compiled modules](#advanced-compiled-modules)
     - [(Advanced) Zip Python core installation](#advanced-zip-python-core-installation)
+  - [About directories and code organisation](#about-directories-and-code-organisation)
   - [Understanding a virtual environment](#understanding-a-virtual-environment)
     - [Installing Pipenv](#installing-pipenv)
     - [Creating a virtual environment with Pipenv](#creating-a-virtual-environment-with-pipenv)
     - [Virtualenv paths](#virtualenv-paths)
-  - [About directories and working environments](#about-directories-and-working-environments)
   - [Creating a Python project](#creating-a-python-project)
     - [Opening a directory as a project with PyCharm](#opening-a-directory-as-a-project-with-pycharm)
       - [(Advanced) Selecting external virtualenv](#advanced-selecting-external-virtualenv)
@@ -42,6 +42,7 @@
       - [Pip installations](#pip-installations)
         - [Word of advice on running `setup.py` directly](#word-of-advice-on-running-setuppy-directly)
     - [Parsing arguments](#parsing-arguments)
+  - [Setting up gcloud SDK](#setting-up-gcloud-sdk)
 
 ---
 
@@ -101,10 +102,10 @@ The overview of the whole process:
 - Use Git in a basic way
 - Create and package a Python project
 - Using a mix of modules and jupyter notebooks we will
-  - Load the data and tranform it with pandas
+  - Load the data and transform it with pandas
   - Visualize the data in the jupyter notebooks
   - Generate pdf reports out of the notebooks
-  - Upload the jupyter notebook and the pdf reports to Google Cloud Storage (GS)
+  - Upload the jupyter notebook after run to Google Cloud Storage (GS)
 - Containerize the project
 - Setup CI/CD using gitlab-ci and GCP cloudbuild
 - Schedule it with Airflow using the KubernetesPodOperator
@@ -233,6 +234,16 @@ Python supports distributing the sourcecode in zipfiles. This is a feature to ea
 
 Zipped Python packaging is outside the scope of this guide, but feel free to read about it at [PEP-273](https://www.python.org/dev/peps/pep-0273/)
 
+## About directories and code organisation
+
+Before starting off with the first project, I would consider a few things that usually developer come across on their own:
+
+- Spaces in the names of directories and files at any point are forbidden. Spaces cause a ton of trouble and we end up paying the price way later when changing paths it's practically impossible.
+- Create a directory to hold all our code. Having code projects in the desktop is handy, but code ends up getting mixed with downloads and what not, and that gets unmanageable quickly. Here there are a few approaches to organize cour coding projects:
+  - Directory in the root called "projects" or "code" (`/projects/`)
+  - Directory in HOME (`/home/javier/projects/`), supposing the path doesn't contain any space, called "projects" or "code"
+  - Same thing as before, but organising the code in subdirectories (per project for example)
+
 ## Understanding a virtual environment
 
 We have explained how Python looks up packages and modules, and we have seen how the global Python installation is organized.
@@ -302,15 +313,6 @@ This way, we can have several virtual environments, with different packages and 
 
 Feel free to install new packages using Pipenv, and check how the `site-packages` directory gets populated with new packages and modules.
 
-## About directories and working environments
-
-Before starting off with the first project, I would consider a few things that usually developer come across on their own:
-
-- Spaces in the names of directories and files at any point are forbidden. Spaces cause a ton of trouble and we end up paying the price way later when changing paths it's practically impossible.
-- Create a directory to hold all our code. Having code projects in the desktop is handy, but code ends up getting mixed with downloads and what not, and that gets unmanageable quickly. Here there are a few approaches to organize cour coding projects:
-  - Directory in the root called "projects" or "code" (`/projects/`)
-  - Directory in HOME (`/home/javier/projects/`), supposing the path doesn't contain any space, called "projects" or "code"
-  - Same thing as before, but organising the code in subdirectories (per project for example)
 
 ## Creating a Python project
 
@@ -579,7 +581,7 @@ Everything looks ok, so let's proceed. Just in case you don't understand why I a
 
 We are finally ready to start the first script. We have all the stuff we need to test the code and some mock data to work on.
 
-We can finally make use of the IDE and create a new Python script in the top. Notice that I am speaking about scripts, as opposed to modules. This is because on how I am planning to run it.
+We can finally make use of the IDE and create a new Python script in the top. Notice that I am speaking about scripts, as opposed to modules. This is because on how I am planning to run it directly with python (`python main.py`).
 
 ### Getting informed about how to use the API
 
@@ -591,15 +593,18 @@ After reading for while, let's start with copying the code in the examples toget
 import nbformat
 from nbconvert.preprocessors import ExecutePreprocessor
 
-with open('test-notebook.ipynb') as f:
+
+with open(notebook_filename) as f:
     nb = nbformat.read(f, as_version=4)
 ep = ExecutePreprocessor(timeout=600, kernel_name='python3')
-ep.preprocess(nb, {'metadata': {'path': './'}})
+ep.preprocess(nb, {'metadata': {'path': './notebooks'}})
 with open('executed_notebook.ipynb', 'wt') as f:
     nbformat.write(nb, f)
 ```
 
 This is literally a copy paste of all the stuff we can find in the documentation. To be honest, it's pure chance this tutorial is so straight forward, and it's probably the only time that it has happened to me.
+
+There are a few things that need to be tweaked though, such as having `notebook_filename` defined with the name of our notebook, and changing the `metadata.path` value to be `./`.
 
 ### Structuring the code
 
@@ -828,9 +833,15 @@ OSError: xelatex not found on PATH, if you have not installed xelatex you may ne
 
 In general it's really important to read the text of the errors. Many times people before turning into writing Software will just ignore any error without looking them up or paying much attention. This is extremely common in Windows users because they are accustomed to unhelpful error messages. Please be careful and try to read through all the stuff that you come through when coding.
 
-This exception is telling us that the tool `xelatex` is not in the system, and therefore it cannot proceed. This is because pdf generation depends on latex generation.
+This exception is telling us that the tool `xelatex` is not in the system, and therefore it cannot proceed. This is because the pdf exporter depends on the latex exporter.
 
-We could setup everything locally, but given that our code is just glue code, we will just ignore pdf generation for now, and move onto other more interesting steps.
+We could setup everything locally, but given that our code is just glue code and we first need to improve our base code, we will just ignore the pdf exporter for now, and move onto other more interesting steps. Let's remove the `make_pdf()` call from the `main()` function for now.
+
+```python
+def main():
+    notebook = run_notebook()
+    write_notebook(notebook)
+```
 
 ### Saving the work
 
@@ -937,7 +948,7 @@ python main.py
 to run like
 
 ```bash
-run-jupyter -o gs://example/path/to/file.ipynb test-notebook.ipynb
+jr -n test-notebook.ipynb -o gs://example/path/to/file.ipynb
 ```
 
 Remember that in this case our application runs a jupyter notebook, but it could be anything else, not jupyter related.
@@ -1001,24 +1012,6 @@ Having this will allow us to run the code with `python -m jr`
 
 ```text
 [I] (test-project) javier@sam ~/t/test-project (master)> python -m jr
-Traceback (most recent call last):
-  File "/usr/lib64/python3.7/runpy.py", line 193, in _run_module_as_main
-    "__main__", mod_spec)
-  File "/usr/lib64/python3.7/runpy.py", line 85, in _run_code
-    exec(code, run_globals)
-  File "/home/javier/tmp/test-project/jr/__main__.py", line 7, in <module>
-    main()
-  File "/home/javier/tmp/test-project/jr/main.py", line 30, in main
-    write_pdf(notebook)
-  File "/home/javier/tmp/test-project/jr/main.py", line 22, in write_pdf
-    body, resources = pdf_exporter.from_notebook_node(notebook)
-  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/nbconvert/exporters/pdf.py", line 171, in from_notebook_node
-    rc = self.run_latex(tex_file)
-  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/nbconvert/exporters/pdf.py", line 143, in run_latex
-    self.latex_count, log_error)
-  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/nbconvert/exporters/pdf.py", line 105, in run_command
-    "at {link}.".format(formatter=command_list[0], link=link))
-OSError: xelatex not found on PATH, if you have not installed xelatex you may need to do so. Find further instructions at https://nbconvert.readthedocs.io/en/latest/install.html#installing-tex.
 ```
 
 However, this will only work if we are in the root of the project, nowhere else.
@@ -1069,7 +1062,7 @@ setup(
 
 You can check in the docs what all this does more in detail, but we will just say that we are going to distribute a package called `jr` with version `0.0.1` and that it will distribute only the packages it finds in the current directory (`jk` for us).
 
-With this, we can do finally an install of our source code in `site-packages`. This can be done with pip.
+With this, we can finally install our source code in the virtualenv `site-packages`, remember we never want to do install anything in the global one. This can be done with pip.
 
 ```text
 [I] (test-project) javier@sam ~/t/test-project (master)> pip install .
@@ -1098,18 +1091,6 @@ It seems to be there. Let's try to go to other directory and check if it runs:
 ```text
 [I] (test-project) javier@sam ~/t/test-project (master)> cd jr
 [I] (test-project) javier@sam ~/t/t/jr (master)> python -m jr
-Traceback (most recent call last):
-  File "/usr/lib64/python3.7/runpy.py", line 193, in _run_module_as_main
-    "__main__", mod_spec)
-  File "/usr/lib64/python3.7/runpy.py", line 85, in _run_code
-    exec(code, run_globals)
-  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/jr/__main__.py", line 7, in <module>
-    main()
-  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/jr/main.py", line 28, in main
-    notebook = run_notebook()
-  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/jr/main.py", line 7, in run_notebook
-    with open(notebook_file) as f:
-FileNotFoundError: [Errno 2] No such file or directory: 'test-notebook.ipynb'
 ```
 
 Of course it still fails (in this case because it cannot find the file), but we can see it is actually executing the jr package from `File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/jr/main.py", line 28, in main`
@@ -1144,18 +1125,6 @@ Let's try it out
 [I] (test-project) javier@sam ~/t/test-project (master) [1]> jr
 fish: Unknown command jr
 [I] (test-project) javier@sam ~/t/test-project (master) [127]> python -m jr
-Traceback (most recent call last):
-  File "/usr/lib64/python3.7/runpy.py", line 193, in _run_module_as_main
-    "__main__", mod_spec)
-  File "/usr/lib64/python3.7/runpy.py", line 85, in _run_code
-    exec(code, run_globals)
-  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/jr/__main__.py", line 7, in <module>
-    main()
-  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/jr/main.py", line 28, in main
-    notebook = run_notebook()
-  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/jr/main.py", line 7, in run_notebook
-    with open(notebook_file) as f:
-FileNotFoundError: [Errno 2] No such file or directory: 'test-notebook.ipynb'
 [I] (test-project) javier@sam ~/t/test-project (master) [1]> jr
 fish: Unknown command jr
 ```
@@ -1175,20 +1144,6 @@ Installing collected packages: jr
       Successfully uninstalled jr-0.0.1
 Successfully installed jr-0.0.1
 [I] (test-project) javier@sam ~/t/test-project (master)> jr
-Traceback (most recent call last):
-  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/bin/jr", line 10, in <module>
-    sys.exit(main())
-  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/jr/main.py", line 30, in main
-    write_pdf(notebook)
-  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/jr/main.py", line 22, in write_pdf
-    body, resources = pdf_exporter.from_notebook_node(notebook)
-  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/nbconvert/exporters/pdf.py", line 171, in from_notebook_node
-    rc = self.run_latex(tex_file)
-  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/nbconvert/exporters/pdf.py", line 143, in run_latex
-    self.latex_count, log_error)
-  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/nbconvert/exporters/pdf.py", line 105, in run_command
-    "at {link}.".format(formatter=command_list[0], link=link))
-OSError: xelatex not found on PATH, if you have not installed xelatex you may need to do so. Find further instructions at https://nbconvert.readthedocs.io/en/latest/install.html#installing-tex.
 ```
 
 We finally have a nice interface to the application. Let's commit this and move onto adding some more business logic.
@@ -1254,7 +1209,7 @@ There are a few things to note:
 - I split in several lines the code that could be in one
   - Maintainability is more important than saving 2us.
 
-Let's use `upload_to_gs` function in the `main` function, and refactor it on the go.
+Let's use `upload_to_gs` function in the `main` function, and refactor it on the go. I have also added a `print()` so that the command line is not empty after successful execution.
 
 ```python
 def main():
@@ -1265,16 +1220,10 @@ def main():
         out_nb = os.path.join(td, 'notebook.ipynb')
         write_notebook(notebook=notebook, notebook_file=out_nb)
         upload_to_gs(file=out_nb, url=f'{gs_file}.ipynb')
-        # Export and upload pdf
-        out_pdf = os.path.join(td, 'notebook.pdf')
-        write_pdf(notebook=notebook, pdf_file=out_pdf)
-        upload_to_gs(file=out_pdf, url=f'{gs_file}.pdf',
-                     file_type='application/pdf')
+    print('Successfully executed')
 ```
 
-You can probably see that this code doesn't look the best. We have some repetitive lines, and it looks a bit messy. Let's ignore this fact for now
-
-As before, there are some things to note:
+You can probably see that this code doesn't look the best. As before, there are some things to note:
 
 - I have started to pass arguments to all the functions
   - This is because once your codebase starts growing, having static filenames as defaults will lead to errors. Although not showed here, I have removed the defaults from the functions.
@@ -1336,11 +1285,7 @@ def main():
         out_nb = os.path.join(td, 'notebook.ipynb')
         write_notebook(notebook=notebook, notebook_file=out_nb)
         upload_to_gs(file=out_nb, url=f'{gs_file}.ipynb')
-        # Export and upload pdf
-        # out_pdf = os.path.join(td, 'notebook.pdf')
-        # write_pdf(notebook=notebook, pdf_file=out_pdf)
-        # upload_to_gs(file=out_pdf, url=f'{gs_file}.pdf',
-        #              file_type='application/pdf')
+    print('Successfully executed')
 ```
 
 #### Pip installations
@@ -1349,21 +1294,6 @@ And let's run it:
 
 ```text
 [I] (test-project) javier@sam ~/t/test-project (master)> jr
-Traceback (most recent call last):
-  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/bin/jr", line 10, in <module>
-    sys.exit(main())
-  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/jr/main.py", line 30, in main
-    write_pdf(notebook)
-  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/jr/main.py", line 22, in write_pdf
-    body, resources = pdf_exporter.from_notebook_node(notebook)
-  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/nbconvert/exporters/pdf.py", line 171, in from_notebook_node
-    rc = self.run_latex(tex_file)
-  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/nbconvert/exporters/pdf.py", line 143, in run_latex
-    self.latex_count, log_error)
-  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/nbconvert/exporters/pdf.py", line 105, in run_command
-    "at {link}.".format(formatter=command_list[0], link=link))
-OSError: xelatex not found on PATH, if you have not installed xelatex you may need to do so. Find
-further instructions at https://nbconvert.readthedocs.io/en/latest/install.html#installing-tex.
 ```
 
 What is going on? ...
@@ -1372,7 +1302,7 @@ Easy! Check out the files the exception is coming from! Remember when we did `pi
 
 To fix this, we can do another `pip install .`
 
-```
+```text
 [I] (test-project) javier@sam ~/t/test-project (master) [1]> pip install .
 Processing /home/javier/tmp/test-project
 Building wheels for collected packages: jr
@@ -1385,22 +1315,7 @@ Installing collected packages: jr
       Successfully uninstalled jr-0.0.1
 Successfully installed jr-0.0.1
 [I] (test-project) javier@sam ~/t/test-project (master)> jr
-/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/google/auth/_default.py:66: UserWarning: Your application has authenticated using end user credentials from Google Cloud SDK. We recommend that most server applications use service accounts instead. If your application continues to use end user credentials from Cloud SDK, you might receive a "quota exceeded" or "API not enabled" error. For more information about service accounts, see https://cloud.google.com/docs/authentication/
-  warnings.warn(_CLOUD_SDK_CREDENTIALS_WARNING)
-Traceback (most recent call last):
-  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/bin/jr", line 10, in <module>
-    sys.exit(main())
-  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/jr/main.py", line 48, in main
-    upload_to_gs(file=out_nb, url=f'{gs_file}.ipynb')
-  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/jr/main.py", line 35, in upload_to_gs
-    client = Client()
-  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/google/cloud/storage/client.py", line 73, in __init__
-    project=project, credentials=credentials, _http=_http
-  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/google/cloud/client.py", line 223, in __init__
-    _ClientProjectMixin.__init__(self, project=project)
-  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/google/cloud/client.py", line 178, in __init__
-    "Project was not passed and could not be "
-OSError: Project was not passed and could not be determined from the environment.
+Successfully executed
 ```
 
 It seems we are starting to see what we wanted. However, let me tell you one tip. What we did was to install the code in `site-packages`, but this is not really helpful when developing.
@@ -1426,13 +1341,15 @@ An explanation is because you can install a module in editable mode from several
 
 To finish up, let's install our project in editable mode. For that, `pip install -e .`
 
-```
+```text
 [I] (test-project) javier@sam ~/t/test-project (master)> pip install -e .
 Obtaining file:///home/javier/tmp/test-project
 Installing collected packages: jr
   Running setup.py develop for jr
 Successfully installed jr
 ```
+
+As always, now that we have more or less finished up some piece of work, where we have jr as a running command, let's commit the work so far.
 
 ##### Word of advice on running `setup.py` directly
 
@@ -1442,4 +1359,136 @@ My experience is that although it always worked for installing the project itsel
 
 ### Parsing arguments
 
-Right now our
+Right now our code has everything hardcoded. This can be ok for the first version, but we definitely don't want to have lack of flexibility with the naming of our input and output files. Moreover, we want to be able to upload the run notebook to GS, and we wouldn't want to overwrite the same file.
+
+Python stores all the arguments in `sys.argv` as a list. Feel free to have a look:
+
+```text
+[I] (test-project) javier@sam ~/t/test-project (master)> python - -a -b -c --dea
+Python 3.7.3 (default, Mar 26 2019, 21:43:19)
+[GCC 8.2.1 20181127] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> import sys
+>>> sys.argv
+['-', '-a', '-b', '-c', '--dea']
+```
+
+We could parse (analyse) this manually, but there is people that has created already a set of libraries to deal with arguments. There are a few included with core python, but we are not going to use them because we are going to use the one considered best at the moment.
+
+The library is called `click`, and as always, it can be installed with `pipenv install click`.
+
+Once the installation is over, we can head to the documentation. There is a nice quickstart on how to use it, and it comes with quite a comfortable API to use with.
+
+We can come up with some code like this:
+
+```python
+@click.option('--output', '-o', required=True)
+@click.option('--notebook', '-n', required=True)
+@click.command()
+def main(notebook, output):
+    notebook_obj = run_notebook(notebook_file=notebook)
+    with tempfile.TemporaryDirectory() as td:
+        # Export and upload ipynb
+        out_nb = os.path.join(td, 'notebook.ipynb')
+        write_notebook(notebook=notebook_obj, notebook_file=out_nb)
+        upload_to_gs(file=out_nb, url=output)
+```
+
+See we have replaced all the hardcoded strings with variables that are supplied by the user in runtime.
+
+```text
+[I] (test-project) javier@sam ~/t/test-project (master) [2]> jr
+Usage: jr [OPTIONS]
+Try "jr --help" for help.
+
+Error: Missing option "--notebook" / "-n".
+[I] (test-project) javier@sam ~/t/test-project (master) [2]> jr -n test-notebook.ipynb
+Usage: jr [OPTIONS]
+Try "jr --help" for help.
+
+Error: Missing option "--output" / "-o".
+[I] (test-project) javier@sam ~/t/test-project (master) [2]>
+jr -n test-notebook.ipynb -o gs://pricing-commercial-random/test.ipynb
+/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/google/auth/_default.py:66: UserWarning: Your application has authenticated using end user credentials from
+Google Cloud SDK. We recommend that most server applications use service accounts instead. If your application continues to use end user credentials from Cloud SDK, you might receive a "quota exceeded" or "API not enabled" error. For more information about service accounts, see https://cloud.google.com/docs/authentication/
+  warnings.warn(_CLOUD_SDK_CREDENTIALS_WARNING)
+Traceback (most recent call last):
+  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/bin/jr", line 11, in <module>
+    load_entry_point('jr', 'console_scripts', 'jr')()
+  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/click/core.py", line 764, in __call__
+    return self.main(*args, **kwargs)
+  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/click/core.py", line 717, in main
+    rv = self.invoke(ctx)
+  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/click/core.py", line 956, in invoke
+    return ctx.invoke(self.callback, **ctx.params)
+  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/click/core.py", line 555, in invoke
+    return callback(*args, **kwargs)
+  File "/home/javier/tmp/test-project/jr/main.py", line 50, in main
+    upload_to_gs(file=out_nb, url=output)
+  File "/home/javier/tmp/test-project/jr/main.py", line 36, in upload_to_gs
+    client = Client()
+  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/google/cloud/storage/client.py", line 73, in __init__
+    project=project, credentials=credentials, _http=_http
+  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/google/cloud/client.py", line 223, in __init__
+    _ClientProjectMixin.__init__(self, project=project)
+  File "/home/javier/.local/share/virtualenvs/test-project-XXOJkPrF/lib/python3.7/site-packages/google/cloud/client.py", line 178, in __init__
+    "Project was not passed and could not be "
+OSError: Project was not passed and could not be determined from the environment.
+```
+
+As you can see, we have hit a new error, however we have finished packaging the application and it is invoked as we promissed at the beginning of the section
+
+## Setting up gcloud SDK
+
+There is extensive documentation on setting up gcloud and all the rest of commands. But I am going to give a hands on explanation that you may find useful later.
+
+gcloud is a python client, fully opensource, and it mainly implements the documented API of each of the services it can manage. However, this is most of the times irrelevant. As a local cli tool, it has all the configuration in the local filesystem.
+
+More specifically, the directory we are going to be discovering is `~/.config/gcloud` (I believe it to be the same in Windows too)
+
+The first command that the cli suggests you do when you run it is `gcloud init`. If you have never done so, do it, but you have probably done it every time it didn't work.
+
+Let's try to understand what the directory structure is in my case. I have removed most of the files and directories that we don't care about.
+
+```text
+/home/javier/.config/gcloud/
+├── access_tokens.db
+├── active_config
+├── application_default_credentials.json
+└── configurations
+    ├── config_dubtrack-tt
+    ├── config_farfetch
+    ├── config_testing
+    └── config_wej
+
+```
+
+We will manage everything here through `gcloud auth` and `gcloud config`.
+
+Credentials are stored in `access_tokens.db`, and are usually populated when you do `gcloud init` or `gcloud auth login`.
+
+Configurations are a set of parameters that the tools will run with. For example:
+
+```ini
+[core]
+account = javierdo1@gmail.com
+project = example-project
+
+[app]
+suppress_change_warning = true
+```
+
+These are configurations that affect the different subcommands of gcloud, the SDKs and client libraries google produces. Google has unified all the configurations within these few files.
+
+The file `active_config` points to what configuration is active, therefore you can have different setups for each project you have, and activate them on demand. The tokens to authenticate the user are stored in `access_tokens.db`.
+
+Finally, last but not least, google tries to separate authentication between users and applications by making the applications read service accounts.
+
+Usually, when you develop an application, you deploy it with a "Service Account", which is like a user account (such as a gmail account), with a few peculiarities:
+
+- It's meant to be used by applications, therefore it doesn't have a password
+- Because you still need to authenticate with it, a "key" is created, usually referred as service account key, which is automatically deployed in the servers.
+
+When you are developing locally, gcloud let's you emulate it with `gcloud auth application-default login`. It will generate a credential for the libraries and applications to use, but instead of using a service account, it will use your personal account.
+
+This way, you can be sure that you have a consistent working environment between the tools you use and the tools you create.
